@@ -9,7 +9,7 @@ echo "=== Updating system packages ==="
 apk update && apk upgrade
 
 echo "=== Installing base packages ==="
-apk add --no-cache sudo openssh iptables iptables-openrc bash curl
+apk add --no-cache sudo openssh iptables iptables-openrc bash curl shadow snap
 
 echo "=== Configuring SSH ==="
 rc-update add sshd
@@ -27,7 +27,8 @@ rc-service sshd restart
 
 echo "=== Creating infra_si user ==="
 if ! id infra_si >/dev/null 2>&1; then
-    adduser -D -h /home/infra_si infra_si
+    adduser -S -D -h /home/infra_si infra_si
+    adduser infra_si wheel
 fi
 
 # Set up SSH folder and permissions
@@ -35,12 +36,16 @@ mkdir -p /home/infra_si/.ssh
 chmod 700 /home/infra_si/.ssh
 touch /home/infra_si/.ssh/authorized_keys
 chmod 600 /home/infra_si/.ssh/authorized_keys
-chown -R infra_si:infra_si /home/infra_si/.ssh
+chown -R infra_si:wheel /home/infra_si/.ssh
 
 # Add limited sudo rights
 if ! grep -q "infra_si" /etc/sudoers; then
-    echo "infra_si ALL=(ALL) NOPASSWD: /usr/local/bin/deploy*, /usr/bin/microk8s*, /usr/bin/kubectl" >> /etc/sudoers
+    #echo "%wheel ALL=(ALL:ALL) NOPASSWD: ALL
+    echo "%wheel ALL=(ALL:ALL) NOPASSWD: /usr/local/bin/deploy*, /usr/bin/microk8s*, /usr/bin/kubectl" >> /etc/sudoers
 fi
+
+# Make infra_si user an interactive user for ssh shell commands
+sed -i '/^infra_si:/s/^infra_si:!*/infra_si:*/' /etc/shadow
 
 echo "=== Setting up iptables firewall rules ==="
 cat <<'EOF' > /etc/iptables/rules-save
